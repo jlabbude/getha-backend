@@ -20,7 +20,7 @@ func aparelhosManual(context *gin.Context) {
 	var manualPath string
 	switch id {
 		case 1:
-			manualPath = `D:\9O8UYL\POP_BrennaMoizinho.pdf`
+			manualPath = `D:\9O8UYL\POP.pdf`
 		default:
 			manualPath = `D:\9O8UYL\1768590.pdf`
 	}
