@@ -11,61 +11,85 @@ import (
 	"strconv"
 )
 
-var DATABASE *gorm.DB
+func aparelhosIDs(context *gin.Context) {
+	var ids []uint
 
-type Aparelho struct {
-	ID         uint
-	nome       string
-	imagemPath string
-}
+	if err := DATABASE.Model(&Aparelho{}).Pluck("ID", &ids).Error; err != nil {
+		context.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 
-type Manual struct {
-	gorm.Model
-	manualPath string
-	aparelhoID uint
-	aparelho   Aparelho `gorm:"foreignKey:aparelhoID"`
-}
-
-type Video struct {
-	gorm.Model
-	videoPath  string
-	aparelhoID uint
-	aparelho   Aparelho `gorm:"foreignKey:aparelhoID"`
+	context.JSON(200, ids)
 }
 
 func aparelhosImage(context *gin.Context) {
-	context.File(`D:\GETHA\app\src\main\assets\logo.png`)
-}
+	var imagemPath string
 
-func aparelhosManual(context *gin.Context) {
 	id, err := strconv.Atoi(context.Query("id"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
+		return
 	}
-	context.Header("Content-Type", "application/pdf")
+
+	err = DATABASE.Model(&Aparelho{}).
+		Where("id = ?", id).
+		Select("ImagemPath").
+		Limit(1).
+		Scan(&imagemPath).
+		Error
+
+	if err != nil {
+		context.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	if imagemPath == "" {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Aparelho não encontrado"})
+		return
+	}
+
+	//fixme handle file not existing
+	context.File(imagemPath)
+}
+
+func aparelhosManual(context *gin.Context) {
 	var manualPath string
-	switch id {
-	case 1:
-		manualPath = `D:\9O8UYL\POP.pdf`
-	default:
-		manualPath = `D:\9O8UYL\1768590.pdf`
+
+	id, err := strconv.Atoi(context.Query("id"))
+	if err != nil {
+		context.String(http.StatusBadRequest, "Formatação de ID inválida")
+		return
+	}
+
+	err = DATABASE.Model(&Manual{}).
+		Where("id = ?", id).
+		Select("ManualPath").
+		Limit(1).
+		Scan(&manualPath).
+		Error
+
+	if err != nil {
+		context.JSON(500, gin.H{"error": err.Error()})
+		return
 	}
 	context.File(manualPath)
 }
 
 func aparelhosVideo(context *gin.Context) {
+	var videoPath string
+
 	id, err := strconv.Atoi(context.Query("id"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
+		return
 	}
 
-	var videoPath string
-	switch id {
-	case 1:
-		videoPath = `D:\Videos\2024-07-12 11-27-54.mp4 `
-	default:
-		videoPath = `D:\9O8UYL\JIKOL\y2meta.com - Nikocado Avocado Cheers unedited HD(360p).mp4 `
-	}
+	err = DATABASE.Model(&Video{}).
+		Where("id = ?", id).
+		Select("VideoPath").
+		Limit(1).
+		Scan(&videoPath).
+		Error
 
 	file, err := os.Open(videoPath)
 	if err != nil {
@@ -144,8 +168,9 @@ func main() {
 	DATABASE = db
 
 	router := gin.Default()
+	router.GET("/aparelhos_ids", aparelhosIDs)
 	router.GET("/aparelhos_image", aparelhosImage)
 	router.GET("/manual", aparelhosManual)
 	router.GET("/video", aparelhosVideo)
-	_ = router.Run("192.168.15.12:8000")
+	_ = router.Run("localhost:8000")
 }
