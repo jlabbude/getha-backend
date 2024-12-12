@@ -172,5 +172,5 @@ func main() {
 	router.GET("/aparelhos_image", aparelhosImage)
 	router.GET("/manual", aparelhosManual)
 	router.GET("/video", aparelhosVideo)
-	_ = router.Run("192.168.15.12:8000")
+	_ = router.Run("localhost:8000")
 }
