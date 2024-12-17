@@ -156,7 +156,11 @@ func aparelhosVideo(context *gin.Context) {
 }
 
 func main() {
-	dsn := "host=localhost user=admin password=enzofernandes123 dbname=gethadb port=5432 sslmode=disable TimeZone=Brazil/East"
+	dsn := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=5432",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_DB"),
+		os.Getenv("POSTGRES_HOST"))
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -172,5 +176,5 @@ func main() {
 	router.GET("/aparelhos_image", aparelhosImage)
 	router.GET("/manual", aparelhosManual)
 	router.GET("/video", aparelhosVideo)
-	_ = router.Run("localhost:8000")
+	_ = router.Run(":8000")
 }
