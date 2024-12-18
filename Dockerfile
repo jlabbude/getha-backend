@@ -12,4 +12,5 @@ FROM ubuntu:latest
 WORKDIR /app
 COPY --from=builder /app/app .
 EXPOSE 8000
+RUN mkdir -p /app/aparelhos/image /app/aparelhos/video /app/aparelhos/manual
 CMD ["./app"]

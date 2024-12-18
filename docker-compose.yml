@@ -8,11 +8,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - aparelhosData:/app/aparelhos
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=enzofernandes123
       - POSTGRES_DB=gethadb
+      # - GIN_MODE=release
 
   db:
     image: postgres:15
@@ -34,3 +37,4 @@ services:
 
 volumes:
   pgdata:
+  aparelhosData:
