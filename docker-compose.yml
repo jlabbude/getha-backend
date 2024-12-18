@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    hostname: getha-backend
+    container_name: getha-backend
     depends_on:
       db:
         condition: service_healthy
@@ -15,7 +15,9 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=enzofernandes123
       - POSTGRES_DB=gethadb
-      # - GIN_MODE=release
+    privileged: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   db:
     image: postgres:15
@@ -38,3 +40,8 @@ services:
 volumes:
   pgdata:
   aparelhosData:
+
+networks:
+  default:
+    name: getha-network
+    driver: bridge
