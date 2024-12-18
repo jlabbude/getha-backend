@@ -3,16 +3,22 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 )
 
-func aparelhosIDs(context *gin.Context) {
-	var ids []uint
+const ImagePath = "/app/aparelhos/image"
+const VideoPath = "/app/aparelhos/video"
+const ManualPath = "/app/aparelhos/manual"
+
+func serveIDList(context *gin.Context) {
+	var ids []uuid.UUID
 
 	if err := DATABASE.Model(&Aparelho{}).Pluck("ID", &ids).Error; err != nil {
 		context.JSON(500, gin.H{"error": err.Error()})
@@ -22,10 +28,76 @@ func aparelhosIDs(context *gin.Context) {
 	context.JSON(200, ids)
 }
 
-func aparelhosImage(context *gin.Context) {
+func createAparelho(context *gin.Context) {
+	id := uuid.New()
+
+	nome := context.PostForm("nome")
+	if nome == "" {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no preenchimento do nome."})
+		return
+	}
+
+	image, err := context.FormFile("image_path")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload da imagem, " + err.Error()})
+		return
+	} else if path.Ext(image.Filename) != ".png" && path.Ext(image.Filename) != ".jpg" && path.Ext(image.Filename) != ".jpeg" {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de imagem inválido. Apenas .png, .jpg e .jpeg são aceitos."})
+		return
+	}
+	imagePath := fmt.Sprintf("%s/%s", ImagePath, id.String()+path.Ext(image.Filename))
+	// fixme resize to square
+	if _, err = os.Create(imagePath); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	video, err := context.FormFile("video_path")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do vídeo, " + err.Error()})
+		return
+	} else if path.Ext(video.Filename) != ".mp4" {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de vídeo inválido. Apenas .mp4 é aceito."})
+		return
+	}
+	videoPath := fmt.Sprintf("%s/%s", VideoPath, id.String()+path.Ext(video.Filename))
+	if _, err = os.Create(videoPath); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	manual, err := context.FormFile("manual_path")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do manual, " + err.Error()})
+		return
+	} else if path.Ext(manual.Filename) != ".pdf" {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de manual inválido. Apenas .pdf é aceito"})
+		return
+	}
+	manualPath := fmt.Sprintf("%s/%s", ManualPath, id.String()+path.Ext(manual.Filename))
+	if _, err = os.Create(manualPath); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	aparelho := Aparelho{
+		ID:         id,
+		Nome:       nome,
+		ImagePath:  imagePath,
+		VideoPath:  videoPath,
+		ManualPath: manualPath,
+	}
+
+	if result := DATABASE.Create(&aparelho); result.Error != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	} else {
+		context.String(http.StatusOK, "Aparelho criado com id: ", id.String())
+		return
+	}
+}
+
+func serveImage(context *gin.Context) {
 	var imagemPath string
 
-	id, err := strconv.Atoi(context.Query("id"))
+	id, err := uuid.Parse(context.Query("id"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
 		return
@@ -33,7 +105,7 @@ func aparelhosImage(context *gin.Context) {
 
 	err = DATABASE.Model(&Aparelho{}).
 		Where("id = ?", id).
-		Select("ImagemPath").
+		Select("ImagePath").
 		Limit(1).
 		Scan(&imagemPath).
 		Error
@@ -52,16 +124,16 @@ func aparelhosImage(context *gin.Context) {
 	context.File(imagemPath)
 }
 
-func aparelhosManual(context *gin.Context) {
+func serveManual(context *gin.Context) {
 	var manualPath string
 
-	id, err := strconv.Atoi(context.Query("id"))
+	id, err := uuid.Parse(context.Query("id"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
 		return
 	}
 
-	err = DATABASE.Model(&Manual{}).
+	err = DATABASE.Model(&Aparelho{}).
 		Where("id = ?", id).
 		Select("ManualPath").
 		Limit(1).
@@ -75,16 +147,16 @@ func aparelhosManual(context *gin.Context) {
 	context.File(manualPath)
 }
 
-func aparelhosVideo(context *gin.Context) {
+func serveVideo(context *gin.Context) {
 	var videoPath string
 
-	id, err := strconv.Atoi(context.Query("id"))
+	id, err := uuid.Parse(context.Query("id"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
 		return
 	}
 
-	err = DATABASE.Model(&Video{}).
+	err = DATABASE.Model(&Aparelho{}).
 		Where("id = ?", id).
 		Select("VideoPath").
 		Limit(1).
@@ -165,16 +237,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = db.AutoMigrate(&Aparelho{}, &Manual{}, &Video{})
+	err = db.AutoMigrate(&Aparelho{})
 	if err != nil {
 		panic(err)
 	}
 	DATABASE = db
 
 	router := gin.Default()
-	router.GET("/aparelhos_ids", aparelhosIDs)
-	router.GET("/aparelhos_image", aparelhosImage)
-	router.GET("/manual", aparelhosManual)
-	router.GET("/video", aparelhosVideo)
+	router.POST("/create_aparelho", createAparelho)
+	router.GET("/serve_ids", serveIDList)
+	router.GET("/serve_image", serveImage)
+	router.GET("/serve_manual", serveManual)
+	router.GET("/serve_video", serveVideo)
 	_ = router.Run(":8000")
 }

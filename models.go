@@ -1,29 +1,16 @@
 package main
 
 import (
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 var DATABASE *gorm.DB
 
 type Aparelho struct {
-	ID         uint     `gorm:"primaryKey;autoIncrement;unique"`
-	Nome       string   `gorm:"type:text"`
-	ImagemPath string   `gorm:"type:text"`
-	Videos     []Video  `gorm:"foreignKey:AparelhoID"`
-	Manuais    []Manual `gorm:"foreignKey:AparelhoID"`
-}
-
-type Manual struct {
-	ID         uint   `gorm:"primaryKey;autoIncrement;unique"`
-	ManualPath string `gorm:"type:text"`
-	AparelhoID uint
-	Aparelho   Aparelho `gorm:"foreignKey:AparelhoID;references:ID"`
-}
-
-type Video struct {
-	ID         uint   `gorm:"primaryKey;autoIncrement;unique"`
-	VideoPath  string `gorm:"type:text"`
-	AparelhoID uint
-	Aparelho   Aparelho `gorm:"foreignKey:AparelhoID;references:ID"`
+	ID         uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
+	Nome       string    `gorm:"type:text"`
+	ImagePath  string    `gorm:"type:text"`
+	VideoPath  string    `gorm:"type:text"`
+	ManualPath string    `gorm:"type:text"`
 }
