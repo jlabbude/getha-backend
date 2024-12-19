@@ -45,23 +45,43 @@ func createAparelho(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de imagem inválido. Apenas .png, .jpg e .jpeg são aceitos."})
 		return
 	}
-	imagePath := fmt.Sprintf("%s/%s", ImagePath, id.String()+path.Ext(image.Filename))
-	// fixme resize to square
-	if _, err = os.Create(imagePath); err != nil {
+	imageSrc, err := image.Open()
+	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer imageSrc.Close()
+	imagePath := fmt.Sprintf("%s/%s", ImagePath, id.String()+path.Ext(image.Filename))
+	if imageDest, err := os.Create(imagePath); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	} else {
+		// fixme resize to square
+		if _, err = io.Copy(imageDest, imageSrc); err != nil {
+			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 	}
 
-	video, err := context.FormFile("video_path")
+	videoDest, err := context.FormFile("video_path")
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do vídeo, " + err.Error()})
 		return
-	} else if path.Ext(video.Filename) != ".mp4" {
+	} else if path.Ext(videoDest.Filename) != ".mp4" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de vídeo inválido. Apenas .mp4 é aceito."})
 		return
 	}
-	videoPath := fmt.Sprintf("%s/%s", VideoPath, id.String()+path.Ext(video.Filename))
-	if _, err = os.Create(videoPath); err != nil {
+	videoSrc, err := videoDest.Open()
+	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer videoSrc.Close()
+	videoPath := fmt.Sprintf("%s/%s", VideoPath, id.String()+path.Ext(videoDest.Filename))
+	if videoDest, err := os.Create(videoPath); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	} else {
+		if _, err = io.Copy(videoDest, videoSrc); err != nil {
+			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 	}
 
 	manual, err := context.FormFile("manual_path")
@@ -73,8 +93,18 @@ func createAparelho(context *gin.Context) {
 		return
 	}
 	manualPath := fmt.Sprintf("%s/%s", ManualPath, id.String()+path.Ext(manual.Filename))
-	if _, err = os.Create(manualPath); err != nil {
+	manualSrc, err := manual.Open()
+	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer manualSrc.Close()
+	if manualDest, err := os.Create(manualPath); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	} else {
+		if _, err = io.Copy(manualDest, manualSrc); err != nil {
+			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 	}
 
 	aparelho := Aparelho{
@@ -89,7 +119,7 @@ func createAparelho(context *gin.Context) {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	} else {
-		context.String(http.StatusOK, "Aparelho criado com id: ", id.String())
+		context.String(http.StatusOK, "Aparelho criado com id: "+id.String())
 		return
 	}
 }
@@ -249,5 +279,5 @@ func main() {
 	router.GET("/serve_image", serveImage)
 	router.GET("/serve_manual", serveManual)
 	router.GET("/serve_video", serveVideo)
-	_ = router.Run(":8000")
+	_ = router.Run(":80")
 }
