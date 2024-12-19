@@ -267,8 +267,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = db.AutoMigrate(&Aparelho{})
-	if err != nil {
+	if err = db.AutoMigrate(&Aparelho{}); err != nil {
 		panic(err)
 	}
 	DATABASE = db
@@ -279,5 +278,8 @@ func main() {
 	router.GET("/serve_image", serveImage)
 	router.GET("/serve_manual", serveManual)
 	router.GET("/serve_video", serveVideo)
-	_ = router.Run(":80")
+	err = router.Run(":80")
+	if err != nil {
+		panic(err)
+	}
 }
