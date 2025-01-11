@@ -1,13 +1,13 @@
 package main
 
 import (
-	"aparelhos"
 	"fmt"
+	"getha/aparelhos"
+	"getha/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"os"
-	"src/getha-backend/models"
 )
 
 func main() {

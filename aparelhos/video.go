@@ -2,10 +2,10 @@ package aparelhos
 
 import (
 	"fmt"
+	"getha/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"io"
-	"models"
 	"net/http"
 	"os"
 	"strconv"
