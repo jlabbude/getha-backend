@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"github.com/google/uuid"
@@ -13,4 +13,11 @@ type Aparelho struct {
 	ImagePath  string    `gorm:"type:text"`
 	VideoPath  string    `gorm:"type:text"`
 	ManualPath string    `gorm:"type:text"`
+}
+
+type Zoonose struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
+	Nome      string    `gorm:"type:text"`
+	Imagem    string    `gorm:"type:text"`
+	Descricao string    `gorm:"type:text"`
 }
