@@ -12,9 +12,7 @@ import (
 	"path/filepath"
 )
 
-const ImagePath = "/app/aparelhos/image"
-const VideoPath = "/app/aparelhos/video"
-const ManualPath = "/app/aparelhos/manual"
+const AparelhosPath = "/app/aparelhos"
 
 func ServeAparelhoIDList(context *gin.Context) {
 	var ids []uuid.UUID
@@ -29,6 +27,10 @@ func ServeAparelhoIDList(context *gin.Context) {
 
 func CreateAparelho(context *gin.Context) {
 	id := uuid.New()
+	localDir := path.Join(AparelhosPath, id.String())
+	if err := os.Mkdir(localDir, 0777); err != nil {
+		context.JSON(500, gin.H{"error": err.Error()})
+	}
 
 	nome := context.PostForm("nome")
 	if nome == "" {
@@ -50,7 +52,7 @@ func CreateAparelho(context *gin.Context) {
 		return
 	}
 	defer imageSrc.Close()
-	imagePath := fmt.Sprintf("%s/%s", ImagePath, id.String()+path.Ext(image.Filename))
+	imagePath := fmt.Sprintf("%s/%s", localDir, id.String()+path.Ext(image.Filename))
 	if imageDest, err := os.Create(imagePath); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	} else {
@@ -74,7 +76,7 @@ func CreateAparelho(context *gin.Context) {
 		return
 	}
 	defer videoSrc.Close()
-	videoPath := fmt.Sprintf("%s/%s", VideoPath, id.String()+path.Ext(videoDest.Filename))
+	videoPath := fmt.Sprintf("%s/%s", localDir, id.String()+path.Ext(videoDest.Filename))
 	if videoDest, err := os.Create(videoPath); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	} else {
@@ -91,7 +93,7 @@ func CreateAparelho(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de manual inválido. Apenas .pdf é aceito"})
 		return
 	}
-	manualPath := fmt.Sprintf("%s/%s", ManualPath, id.String()+path.Ext(manual.Filename))
+	manualPath := fmt.Sprintf("%s/%s", localDir, id.String()+path.Ext(manual.Filename))
 	manualSrc, err := manual.Open()
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
