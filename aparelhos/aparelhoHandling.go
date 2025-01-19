@@ -1,18 +1,27 @@
 package aparelhos
 
 import (
-	"fmt"
+	"errors"
 	"getha/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 )
 
-const AparelhosPath = "/app/aparelhos"
+const AparelhoPath = "/app/aparelhos"
+
+type FileType []string
+
+var (
+	Image  = FileType([]string{".png", ".jpg", ".jpeg"})
+	Video  = FileType([]string{".mp4"})
+	Manual = FileType([]string{".pdf"})
+)
 
 func ServeAparelhoIDList(context *gin.Context) {
 	var ids []uuid.UUID
@@ -26,11 +35,20 @@ func ServeAparelhoIDList(context *gin.Context) {
 }
 
 func CreateAparelho(context *gin.Context) {
+	cleanup := false
 	id := uuid.New()
-	localDir := path.Join(AparelhosPath, id.String())
-	if err := os.Mkdir(localDir, 0777); err != nil {
+	localDir := path.Join(AparelhoPath, id.String())
+	err := os.Mkdir(localDir, 0777)
+	if err != nil {
 		context.JSON(500, gin.H{"error": err.Error()})
+		return
 	}
+
+	defer func() {
+		if !cleanup {
+			os.RemoveAll(localDir)
+		}
+	}()
 
 	nome := context.PostForm("nome")
 	if nome == "" {
@@ -42,70 +60,33 @@ func CreateAparelho(context *gin.Context) {
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload da imagem, " + err.Error()})
 		return
-	} else if path.Ext(image.Filename) != ".png" && path.Ext(image.Filename) != ".jpg" && path.Ext(image.Filename) != ".jpeg" {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de imagem inválido. Apenas .png, .jpg e .jpeg são aceitos."})
-		return
 	}
-	imageSrc, err := image.Open()
+	imagePath, err := CreateFile(id, image, localDir, Image)
 	if err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-	defer imageSrc.Close()
-	imagePath := fmt.Sprintf("%s/%s", localDir, id.String()+path.Ext(image.Filename))
-	if imageDest, err := os.Create(imagePath); err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	} else {
-		// fixme resize to square
-		if _, err = io.Copy(imageDest, imageSrc); err != nil {
-			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
 	}
 
-	videoDest, err := context.FormFile("video_path")
+	video, err := context.FormFile("video_path")
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do vídeo, " + err.Error()})
 		return
-	} else if path.Ext(videoDest.Filename) != ".mp4" {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de vídeo inválido. Apenas .mp4 é aceito."})
-		return
 	}
-	videoSrc, err := videoDest.Open()
+	videoPath, err := CreateFile(id, video, localDir, Video)
 	if err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-	defer videoSrc.Close()
-	videoPath := fmt.Sprintf("%s/%s", localDir, id.String()+path.Ext(videoDest.Filename))
-	if videoDest, err := os.Create(videoPath); err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	} else {
-		if _, err = io.Copy(videoDest, videoSrc); err != nil {
-			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
 	}
 
 	manual, err := context.FormFile("manual_path")
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do manual, " + err.Error()})
 		return
-	} else if path.Ext(manual.Filename) != ".pdf" {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Formato de manual inválido. Apenas .pdf é aceito"})
-		return
 	}
-	manualPath := fmt.Sprintf("%s/%s", localDir, id.String()+path.Ext(manual.Filename))
-	manualSrc, err := manual.Open()
+	manualPath, err := CreateFile(id, manual, localDir, Manual)
 	if err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-	defer manualSrc.Close()
-	if manualDest, err := os.Create(manualPath); err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	} else {
-		if _, err = io.Copy(manualDest, manualSrc); err != nil {
-			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
 	}
 
 	aparelho := models.Aparelho{
@@ -119,10 +100,10 @@ func CreateAparelho(context *gin.Context) {
 	if result := models.DATABASE.Create(&aparelho); result.Error != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
-	} else {
-		context.String(http.StatusOK, "Aparelho criado com id: "+id.String())
-		return
 	}
+
+	cleanup = true
+	context.String(http.StatusCreated, "Aparelho criado com id: "+id.String())
 }
 
 func DeleteAparelho(context *gin.Context) { // fixme auth
@@ -151,4 +132,27 @@ func DeleteAparelho(context *gin.Context) { // fixme auth
 	}
 	context.JSON(http.StatusOK, gin.H{"message": "Aparelho deletado com sucesso"})
 	return
+}
+
+func CreateFile(id uuid.UUID, file *multipart.FileHeader, destPath string, ftypes FileType) (string, error) {
+	ext := path.Ext(file.Filename)
+	for i, ftype := range ftypes {
+		if ext != ftype && i == len(ftypes)-1 {
+			return "", errors.New("formato de arquivo inválido " + ext + " " + ftype)
+		} else {
+			break
+		}
+	}
+	fileHandler, err := file.Open()
+	if err != nil {
+		return "", errors.New(err.Error() + "aqui1" + ftypes[0])
+	}
+	defer fileHandler.Close()
+	filePath := path.Join(destPath, id.String()+path.Ext(file.Filename))
+	if finalFile, err := os.Create(filePath); err != nil {
+		return "", errors.New(err.Error() + "aqui2" + ftypes[0])
+	} else if _, err = io.Copy(finalFile, fileHandler); err != nil {
+		return "", errors.New(err.Error() + "aqui3" + ftypes[0]) // todo consider client sided cropping/resizing for images
+	}
+	return filePath, nil
 }
