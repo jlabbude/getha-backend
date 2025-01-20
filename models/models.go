@@ -16,8 +16,11 @@ type Aparelho struct {
 }
 
 type Zoonose struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
-	Nome      string    `gorm:"type:text"`
-	Imagem    string    `gorm:"type:text"`
-	Descricao string    `gorm:"type:text"`
+	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
+	Nome        string    `gorm:"type:text"`
+	Agente      string    `gorm:"type:text"`
+	Vetor       string    `gorm:"type:text"`
+	Transmissao string    `gorm:"type:text"`
+	Profilaxia  string    `gorm:"type:text"`
+	Descricao   string    `gorm:"type:text"`
 }

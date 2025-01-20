@@ -1,5 +1,6 @@
 services:
   app:
+    network_mode: host
     build:
       context: .
       dockerfile: Dockerfile
@@ -10,14 +11,16 @@ services:
         condition: service_healthy
     volumes:
       - aparelhosData:/app/aparelhos
+      - zoonoseData:/app/zoonose
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=127.0.0.1
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=enzofernandes123
       - POSTGRES_DB=gethadb
     privileged: true
 
   db:
+    network_mode: host
     image: postgres:15
     container_name: postgres_db
     environment:
@@ -38,3 +41,4 @@ services:
 volumes:
   pgdata:
   aparelhosData:
+  zoonoseData:
