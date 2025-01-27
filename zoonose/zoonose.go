@@ -16,7 +16,7 @@ type JSONZoonose struct {
 	Descricao      string   `json:"descricao" binding:"required"`
 	Vetores        []string `json:"vetores" binding:"required"`
 	Agentes        []string `json:"agentes" binding:"required"`
-	Transmissao    []string `json:"transmissao" binding:"required"`
+	Transmissoes   []string `json:"transmissoes" binding:"required"`
 	Profilaxias    []string `json:"profilaxias" binding:"required"`
 	Sintomas       []string `json:"sintomas" binding:"required"`
 }
@@ -56,7 +56,7 @@ func CreateZoonose(context *gin.Context) {
 		auxZoo.NomeCientifico == "" ||
 		len(auxZoo.Agentes) == 0 ||
 		len(auxZoo.Vetores) == 0 ||
-		len(auxZoo.Transmissao) == 0 ||
+		len(auxZoo.Transmissoes) == 0 ||
 		len(auxZoo.Profilaxias) == 0 ||
 		len(auxZoo.Sintomas) == 0 {
 
@@ -72,7 +72,7 @@ func CreateZoonose(context *gin.Context) {
 		Organismo:      models.Organismo(auxZoo.Organismo),
 		Agentes:        make([]models.Agentes, len(auxZoo.Agentes)),
 		Vetores:        make([]models.Vetores, len(auxZoo.Vetores)),
-		Transmissoes:   make([]models.Transmissoes, len(auxZoo.Transmissao)),
+		Transmissoes:   make([]models.Transmissoes, len(auxZoo.Transmissoes)),
 		Profilaxias:    make([]models.Profilaxias, len(auxZoo.Profilaxias)),
 		Sintomas:       make([]models.Sintomas, len(auxZoo.Sintomas)),
 	}
@@ -91,7 +91,7 @@ func CreateZoonose(context *gin.Context) {
 		}
 	}
 
-	for i, transmissao := range auxZoo.Transmissao {
+	for i, transmissao := range auxZoo.Transmissoes {
 		zoonose.Transmissoes[i] = models.Transmissoes{
 			Transmissoes: transmissao,
 			ZoonoseID:    id,
@@ -122,7 +122,7 @@ func CreateZoonose(context *gin.Context) {
 }
 
 func DeleteZoonose(context *gin.Context) { // fixme
-	id := context.Param("id")
+	id := context.Query("id")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
 		return
@@ -147,7 +147,7 @@ func DeleteZoonose(context *gin.Context) { // fixme
 }
 
 func GetZoonoseCardInfo(context *gin.Context) {
-	id := context.Param("id")
+	id := context.Query("id")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
 		return
@@ -158,7 +158,12 @@ func GetZoonoseCardInfo(context *gin.Context) {
 	}
 
 	var zoonose models.Zoonose
-	if result := models.DATABASE.First(&zoonose, "id = ?", id); result.Error != nil {
+
+	if result := models.
+		DATABASE.
+		Select("id", "nome", "nome_cientifico", "organismo").
+		First(&zoonose, "id = ?", id); result.Error != nil {
+
 		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
@@ -172,6 +177,74 @@ func GetZoonoseCardInfo(context *gin.Context) {
 
 }
 
-func GetZoonoseFullInfo(context *gin.Context) {
+type InfoAuxZoonose struct {
+	Agentes      []string
+	Vetores      []string
+	Transmissoes []string
+	Profilaxias  []string
+	Sintomas     []string
+}
 
+func GetZoonoseFullInfo(context *gin.Context) {
+	id := context.Query("id")
+	if id == "" {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
+		return
+	}
+
+	var zoonose models.Zoonose
+
+	if result := models.
+		DATABASE.
+		Preload("Agentes").
+		Preload("Vetores").
+		Preload("Transmissoes").
+		Preload("Profilaxias").
+		Preload("Sintomas").
+		First(&zoonose, "id = ?", id); result.Error != nil {
+
+		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+
+	infoauxzoo := InfoAuxZoonose{
+		Sintomas:     make([]string, len(zoonose.Sintomas)),
+		Profilaxias:  make([]string, len(zoonose.Profilaxias)),
+		Transmissoes: make([]string, len(zoonose.Transmissoes)),
+		Vetores:      make([]string, len(zoonose.Vetores)),
+		Agentes:      make([]string, len(zoonose.Agentes)),
+	}
+
+	for i, sintoma := range zoonose.Sintomas {
+		infoauxzoo.Sintomas[i] = sintoma.Sintomas
+	}
+	for i, profilaxia := range zoonose.Profilaxias {
+		infoauxzoo.Profilaxias[i] = profilaxia.Profilaxias
+	}
+	for i, transmissoes := range zoonose.Transmissoes {
+		infoauxzoo.Transmissoes[i] = transmissoes.Transmissoes
+	}
+	for i, vetores := range zoonose.Vetores {
+		infoauxzoo.Vetores[i] = vetores.Vetores
+	}
+	for i, agentes := range zoonose.Agentes {
+		infoauxzoo.Agentes[i] = agentes.Agentes
+	}
+
+	context.JSON(http.StatusOK, gin.H{
+		"id":              zoonose.ID,
+		"nome":            zoonose.Nome,
+		"nome_cientifico": zoonose.NomeCientifico,
+		"descricao":       zoonose.Descricao,
+		"organismo":       zoonose.Organismo,
+		"agentes":         infoauxzoo.Agentes,
+		"vetores":         infoauxzoo.Vetores,
+		"transmissoes":    infoauxzoo.Transmissoes,
+		"profilaxia":      infoauxzoo.Profilaxias,
+		"sintomas":        infoauxzoo.Sintomas,
+	})
 }
