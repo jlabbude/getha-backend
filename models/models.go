@@ -17,7 +17,7 @@ const (
 )
 
 func (organismo *Organismo) Scan(value interface{}) error {
-	*organismo = Organismo(value.([]byte))
+	*organismo = Organismo(value.(string))
 	return nil
 }
 
