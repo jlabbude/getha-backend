@@ -26,7 +26,7 @@ var (
 func ServeAparelhoIDList(context *gin.Context) {
 	var ids []uuid.UUID
 
-	if err := models.DATABASE.Model(&models.Aparelho{}).Pluck("ID", &ids).Error; err != nil {
+	if err := models.DATABASE.Model(&models.Aparelhos{}).Pluck("ID", &ids).Error; err != nil {
 		context.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -89,7 +89,7 @@ func CreateAparelho(context *gin.Context) {
 		return
 	}
 
-	aparelho := models.Aparelho{
+	aparelho := models.Aparelhos{
 		ID:         id,
 		Nome:       nome,
 		ImagePath:  imagePath,
@@ -113,7 +113,7 @@ func DeleteAparelho(context *gin.Context) { // fixme auth
 		return
 	}
 
-	if _, err = models.DATABASE.Model(&models.Aparelho{}).Where("id = ?", id).Delete(&models.Aparelho{}).Rows(); err != nil {
+	if _, err = models.DATABASE.Model(&models.Aparelhos{}).Where("id = ?", id).Delete(&models.Aparelhos{}).Rows(); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -16,7 +16,7 @@ func ServeManual(context *gin.Context) {
 		return
 	}
 
-	err = models.DATABASE.Model(&models.Aparelho{}).
+	err = models.DATABASE.Model(&models.Aparelhos{}).
 		Where("id = ?", id).
 		Select("ManualPath").
 		Limit(1).

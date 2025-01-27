@@ -17,11 +17,21 @@ func main() {
 		os.Getenv("POSTGRES_PASSWORD"),
 		os.Getenv("POSTGRES_DB"),
 		os.Getenv("POSTGRES_HOST"))
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
-	if err = db.AutoMigrate(&models.Aparelho{}, &models.Zoonose{}); err != nil {
+	db.Exec("CREATE TYPE organismo AS ENUM ('Virus', 'Bacteria', 'Fungo', 'Protozoario')")
+	if err = db.AutoMigrate(
+		&models.Aparelhos{},
+		&models.Zoonose{},
+		&models.Vetores{},
+		&models.Agentes{},
+		&models.Transmissoes{},
+		&models.Profilaxias{},
+		&models.Sintomas{},
+	); err != nil {
 		panic(err)
 	}
 	models.DATABASE = db
@@ -38,9 +48,10 @@ func main() {
 	router.POST("/create_zoonose", zoonose.CreateZoonose)
 	router.DELETE("/delete_zoonose", zoonose.DeleteZoonose)
 	router.GET("/serve_zoonose_ids", zoonose.ServeZoonoseIDList)
-	router.GET("/get_zoonose", zoonose.GetZoonoseInfo)
+	router.GET("/get_card_info", zoonose.GetZoonoseCardInfo)
+	router.GET("/get_zoonose_full", zoonose.GetZoonoseFullInfo)
 
-	err = router.Run(":80")
+	err = router.Run(":8080")
 	if err != nil {
 		panic(err)
 	}

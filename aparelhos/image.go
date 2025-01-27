@@ -16,7 +16,7 @@ func ServeImage(context *gin.Context) {
 		return
 	}
 
-	err = models.DATABASE.Model(&models.Aparelho{}).
+	err = models.DATABASE.Model(&models.Aparelhos{}).
 		Where("id = ?", id).
 		Select("ImagePath").
 		Limit(1).

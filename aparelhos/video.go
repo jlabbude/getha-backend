@@ -20,7 +20,7 @@ func ServeVideo(context *gin.Context) {
 		return
 	}
 
-	err = models.DATABASE.Model(&models.Aparelho{}).
+	err = models.DATABASE.Model(&models.Aparelhos{}).
 		Where("id = ?", id).
 		Select("VideoPath").
 		Limit(1).
