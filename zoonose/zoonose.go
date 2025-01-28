@@ -212,27 +212,11 @@ func GetZoonoseFullInfo(context *gin.Context) {
 	}
 
 	infoauxzoo := InfoAuxZoonose{
-		Sintomas:     make([]string, len(zoonose.Sintomas)),
-		Profilaxias:  make([]string, len(zoonose.Profilaxias)),
-		Transmissoes: make([]string, len(zoonose.Transmissoes)),
-		Vetores:      make([]string, len(zoonose.Vetores)),
-		Agentes:      make([]string, len(zoonose.Agentes)),
-	}
-
-	for i, sintoma := range zoonose.Sintomas {
-		infoauxzoo.Sintomas[i] = sintoma.Sintomas
-	}
-	for i, profilaxia := range zoonose.Profilaxias {
-		infoauxzoo.Profilaxias[i] = profilaxia.Profilaxias
-	}
-	for i, transmissoes := range zoonose.Transmissoes {
-		infoauxzoo.Transmissoes[i] = transmissoes.Transmissoes
-	}
-	for i, vetores := range zoonose.Vetores {
-		infoauxzoo.Vetores[i] = vetores.Vetores
-	}
-	for i, agentes := range zoonose.Agentes {
-		infoauxzoo.Agentes[i] = agentes.Agentes
+		Sintomas:     mapSlice(zoonose.Sintomas, func(sintomas models.Sintomas) string { return sintomas.Sintomas }),
+		Profilaxias:  mapSlice(zoonose.Profilaxias, func(profilaxias models.Profilaxias) string { return profilaxias.Profilaxias }),
+		Transmissoes: mapSlice(zoonose.Transmissoes, func(transmissoes models.Transmissoes) string { return transmissoes.Transmissoes }),
+		Vetores:      mapSlice(zoonose.Vetores, func(vetores models.Vetores) string { return vetores.Vetores }),
+		Agentes:      mapSlice(zoonose.Agentes, func(agentes models.Agentes) string { return agentes.Agentes }),
 	}
 
 	context.JSON(http.StatusOK, gin.H{
@@ -247,4 +231,12 @@ func GetZoonoseFullInfo(context *gin.Context) {
 		"profilaxia":      infoauxzoo.Profilaxias,
 		"sintomas":        infoauxzoo.Sintomas,
 	})
+}
+
+func mapSlice[T any](source []T, extract func(T) string) []string {
+	result := make([]string, len(source))
+	for i, item := range source {
+		result[i] = extract(item)
+	}
+	return result
 }
