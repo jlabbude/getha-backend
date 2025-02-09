@@ -30,7 +30,7 @@ func main() {
 		&models.Agentes{},
 		&models.Transmissoes{},
 		&models.Profilaxias{},
-		&models.Sintomas{},
+		&models.Diagnosticos{},
 	); err != nil {
 		panic(err)
 	}

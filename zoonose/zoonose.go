@@ -17,8 +17,9 @@ type JSONZoonose struct {
 	Vetores        []string `json:"vetores" binding:"required"`
 	Agentes        []string `json:"agentes" binding:"required"`
 	Transmissoes   []string `json:"transmissoes" binding:"required"`
+	Regioes        []string `json:"regioes" binding:"required"`
 	Profilaxias    []string `json:"profilaxias" binding:"required"`
-	Sintomas       []string `json:"sintomas" binding:"required"`
+	Diagnosticos   []string `json:"diagnosticos" binding:"required"`
 }
 
 func ServeZoonoseIDList(context *gin.Context) {
@@ -58,7 +59,8 @@ func CreateZoonose(context *gin.Context) {
 		len(auxZoo.Vetores) == 0 ||
 		len(auxZoo.Transmissoes) == 0 ||
 		len(auxZoo.Profilaxias) == 0 ||
-		len(auxZoo.Sintomas) == 0 {
+		len(auxZoo.Regioes) == 0 ||
+		len(auxZoo.Diagnosticos) == 0 {
 
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Todos os campos devem ser preenchidos."})
 		return
@@ -71,10 +73,11 @@ func CreateZoonose(context *gin.Context) {
 		Descricao:      auxZoo.Descricao,
 		Organismo:      models.Organismo(auxZoo.Organismo),
 		Agentes:        make([]models.Agentes, len(auxZoo.Agentes)),
-		Vetores:        make([]models.Vetores, len(auxZoo.Vetores)),
 		Transmissoes:   make([]models.Transmissoes, len(auxZoo.Transmissoes)),
+		Vetores:        make([]models.Vetores, len(auxZoo.Vetores)),
+		Regioes:        make([]models.Regioes, len(auxZoo.Regioes)),
 		Profilaxias:    make([]models.Profilaxias, len(auxZoo.Profilaxias)),
-		Sintomas:       make([]models.Sintomas, len(auxZoo.Sintomas)),
+		Diagnosticos:   make([]models.Diagnosticos, len(auxZoo.Diagnosticos)),
 	}
 
 	for i, agente := range auxZoo.Agentes {
@@ -105,9 +108,16 @@ func CreateZoonose(context *gin.Context) {
 		}
 	}
 
-	for i, sintoma := range auxZoo.Sintomas {
-		zoonose.Sintomas[i] = models.Sintomas{
-			Sintomas:  sintoma,
+	for i, sintoma := range auxZoo.Diagnosticos {
+		zoonose.Diagnosticos[i] = models.Diagnosticos{
+			Diagnosticos: sintoma,
+			ZoonoseID:    id,
+		}
+	}
+
+	for i, regiao := range auxZoo.Regioes {
+		zoonose.Regioes[i] = models.Regioes{
+			Regioes:   regiao,
 			ZoonoseID: id,
 		}
 	}
@@ -182,7 +192,8 @@ type InfoAuxZoonose struct {
 	Vetores      []string
 	Transmissoes []string
 	Profilaxias  []string
-	Sintomas     []string
+	Diagnosticos []string
+	Regioes      []string
 }
 
 func GetZoonoseFullInfo(context *gin.Context) {
@@ -204,7 +215,8 @@ func GetZoonoseFullInfo(context *gin.Context) {
 		Preload("Vetores").
 		Preload("Transmissoes").
 		Preload("Profilaxias").
-		Preload("Sintomas").
+		Preload("Regioes").
+		Preload("Diagnosticos").
 		First(&zoonose, "id = ?", id); result.Error != nil {
 
 		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
@@ -212,10 +224,11 @@ func GetZoonoseFullInfo(context *gin.Context) {
 	}
 
 	infoauxzoo := InfoAuxZoonose{
-		Sintomas:     mapSlice(zoonose.Sintomas, func(sintomas models.Sintomas) string { return sintomas.Sintomas }),
+		Diagnosticos: mapSlice(zoonose.Diagnosticos, func(sintomas models.Diagnosticos) string { return sintomas.Diagnosticos }),
 		Profilaxias:  mapSlice(zoonose.Profilaxias, func(profilaxias models.Profilaxias) string { return profilaxias.Profilaxias }),
 		Transmissoes: mapSlice(zoonose.Transmissoes, func(transmissoes models.Transmissoes) string { return transmissoes.Transmissoes }),
 		Vetores:      mapSlice(zoonose.Vetores, func(vetores models.Vetores) string { return vetores.Vetores }),
+		Regioes:      mapSlice(zoonose.Regioes, func(regioes models.Regioes) string { return regioes.Regioes }),
 		Agentes:      mapSlice(zoonose.Agentes, func(agentes models.Agentes) string { return agentes.Agentes }),
 	}
 
@@ -225,11 +238,12 @@ func GetZoonoseFullInfo(context *gin.Context) {
 		"nome_cientifico": zoonose.NomeCientifico,
 		"descricao":       zoonose.Descricao,
 		"organismo":       zoonose.Organismo,
+		"regioes":         infoauxzoo.Regioes,
 		"agentes":         infoauxzoo.Agentes,
 		"vetores":         infoauxzoo.Vetores,
 		"transmissoes":    infoauxzoo.Transmissoes,
 		"profilaxia":      infoauxzoo.Profilaxias,
-		"sintomas":        infoauxzoo.Sintomas,
+		"diagnosticos":    infoauxzoo.Diagnosticos,
 	})
 }
 

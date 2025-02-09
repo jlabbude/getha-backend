@@ -34,10 +34,17 @@ type Zoonose struct {
 	Organismo      Organismo `gorm:"type:organismo"`
 	// FKs
 	Agentes      []Agentes      `gorm:"foreignKey:ZoonoseID"`
-	Vetores      []Vetores      `gorm:"foreignKey:ZoonoseID"`
 	Transmissoes []Transmissoes `gorm:"foreignKey:ZoonoseID"`
+	Vetores      []Vetores      `gorm:"foreignKey:ZoonoseID"`
+	Regioes      []Regioes      `gorm:"foreignKey:ZoonoseID"`
 	Profilaxias  []Profilaxias  `gorm:"foreignKey:ZoonoseID"`
-	Sintomas     []Sintomas     `gorm:"foreignKey:ZoonoseID"`
+	Diagnosticos []Diagnosticos `gorm:"foreignKey:ZoonoseID"`
+}
+
+type Regioes struct {
+	gorm.Model
+	ZoonoseID uuid.UUID `gorm:"index"`
+	Regioes   string    `gorm:"type:text"`
 }
 
 type Agentes struct {
@@ -64,10 +71,10 @@ type Profilaxias struct {
 	Profilaxias string    `gorm:"type:text"`
 }
 
-type Sintomas struct {
+type Diagnosticos struct {
 	gorm.Model
-	ZoonoseID uuid.UUID `gorm:"index"`
-	Sintomas  string    `gorm:"type:text"`
+	ZoonoseID    uuid.UUID `gorm:"index"`
+	Diagnosticos string    `gorm:"type:text"`
 }
 
 type Aparelhos struct {
