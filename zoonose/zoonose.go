@@ -3,7 +3,6 @@ package zoonose
 // Condensed all the code here since it was less complex compared to the file streaming needed on aparelhos
 
 import (
-	"fmt"
 	"getha/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -52,8 +51,6 @@ func CreateZoonose(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Organismo inválido.", "organismo": organismo})
 		return
 	}
-
-	fmt.Printf("Regiao recebida %v\n", auxZoo.Regioes)
 
 	if auxZoo.Nome == "" ||
 		auxZoo.Descricao == "" ||
