@@ -3,6 +3,7 @@ package zoonose
 // Condensed all the code here since it was less complex compared to the file streaming needed on aparelhos
 
 import (
+	"fmt"
 	"getha/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,6 +35,7 @@ func ServeZoonoseIDList(context *gin.Context) {
 }
 
 func CreateZoonose(context *gin.Context) {
+	context.Header("Content-Type", "application/json; charset=utf-8")
 	var auxZoo JSONZoonose
 	id := uuid.New()
 
@@ -50,6 +52,8 @@ func CreateZoonose(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Organismo inválido.", "organismo": organismo})
 		return
 	}
+
+	fmt.Printf("Regiao recebida %v\n", auxZoo.Regioes)
 
 	if auxZoo.Nome == "" ||
 		auxZoo.Descricao == "" ||
@@ -157,6 +161,7 @@ func DeleteZoonose(context *gin.Context) { // fixme
 }
 
 func GetZoonoseCardInfo(context *gin.Context) {
+	context.Header("Content-Type", "application/json; charset=utf-8")
 	id := context.Query("id")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
@@ -197,6 +202,7 @@ type InfoAuxZoonose struct {
 }
 
 func GetZoonoseFullInfo(context *gin.Context) {
+	context.Header("Content-Type", "application/json; charset=utf-8")
 	id := context.Query("id")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})

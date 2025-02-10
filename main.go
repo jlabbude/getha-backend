@@ -31,6 +31,7 @@ func main() {
 		&models.Transmissoes{},
 		&models.Profilaxias{},
 		&models.Diagnosticos{},
+		&models.Regioes{},
 	); err != nil {
 		panic(err)
 	}
@@ -51,7 +52,7 @@ func main() {
 	router.GET("/get_card_info", zoonose.GetZoonoseCardInfo)
 	router.GET("/get_zoonose_full", zoonose.GetZoonoseFullInfo)
 
-	err = router.Run(":8080")
+	err = router.Run(":80")
 	if err != nil {
 		panic(err)
 	}
