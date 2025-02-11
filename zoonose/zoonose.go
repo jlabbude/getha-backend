@@ -3,9 +3,11 @@ package zoonose
 // Condensed all the code here since it was less complex compared to the file streaming needed on aparelhos
 
 import (
+	"errors"
 	"getha/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -132,7 +134,7 @@ func CreateZoonose(context *gin.Context) {
 
 }
 
-func DeleteZoonose(context *gin.Context) { // fixme
+func DeleteZoonose(context *gin.Context) {
 	id := context.Query("id")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
@@ -140,21 +142,74 @@ func DeleteZoonose(context *gin.Context) { // fixme
 	}
 	if _, err := uuid.Parse(id); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
+	}
+
+	tx := models.DATABASE.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var zoonose models.Zoonose
+	if err := tx.First(&zoonose, "id = ?", id).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			context.JSON(http.StatusNotFound, gin.H{"error": "Zoonose not found"})
+			return
+		}
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
 
-	zoonose := models.Zoonose{}
-	if result := models.DATABASE.Where("id = ?", id).First(&zoonose); result.Error != nil {
-		context.JSON(http.StatusNotFound, gin.H{"error": "Zoonose não encontrada."})
+	if err := tx.Where("zoonose_id = ?", id).Delete(&models.Agentes{}).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete agentes"})
 		return
 	}
 
-	if result := models.DATABASE.Delete(&zoonose); result.Error != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	if err := tx.Where("zoonose_id = ?", id).Delete(&models.Transmissoes{}).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete transmissoes"})
 		return
 	}
 
-	context.JSON(http.StatusOK, gin.H{"message": "Zoonose deletada."})
+	if err := tx.Where("zoonose_id = ?", id).Delete(&models.Vetores{}).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete vetores"})
+		return
+	}
+
+	if err := tx.Where("zoonose_id = ?", id).Delete(&models.Regioes{}).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete regioes"})
+		return
+	}
+
+	if err := tx.Where("zoonose_id = ?", id).Delete(&models.Profilaxias{}).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete profilaxias"})
+		return
+	}
+
+	if err := tx.Where("zoonose_id = ?", id).Delete(&models.Diagnosticos{}).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete diagnosticos"})
+		return
+	}
+
+	if err := tx.Delete(&zoonose).Error; err != nil {
+		tx.Rollback()
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete zoonose"})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction failed"})
+		return
+	}
+
+	context.String(http.StatusNoContent, "Zoonose deletada com sucesso.")
 }
 
 func GetZoonoseCardInfo(context *gin.Context) {

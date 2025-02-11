@@ -41,7 +41,7 @@ func main() {
 
 	router.POST("/create_aparelho", aparelhos.CreateAparelho)
 	router.DELETE("/delete_aparelho", aparelhos.DeleteAparelho)
-	router.GET("/serve_ids", aparelhos.ServeAparelhoIDList)
+	router.GET("/serve_aparelhos_ids", aparelhos.ServeAparelhoIDList)
 	router.GET("/serve_image", aparelhos.ServeImage)
 	router.GET("/serve_manual", aparelhos.ServeManual)
 	router.GET("/serve_video", aparelhos.ServeVideo)
