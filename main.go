@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	db.Exec("CREATE TYPE organismo AS ENUM ('Virus', 'Bacteria', 'Fungo', 'Protozoario')")
+	db.Exec("CREATE TYPE organismo AS ENUM ('Virus', 'Bacteria', 'Fungo', 'Protozoario', 'Helminto')")
 	if err = db.AutoMigrate(
 		&models.Aparelhos{},
 		&models.Zoonose{},

@@ -48,7 +48,8 @@ func CreateZoonose(context *gin.Context) {
 	if organismo := auxZoo.Organismo; organismo != string(models.Bacteria) &&
 		organismo != string(models.Virus) &&
 		organismo != string(models.Fungo) &&
-		organismo != string(models.Protozoario) {
+		organismo != string(models.Protozoario) &&
+		organismo != string(models.Helminto) {
 
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Organismo inválido.", "organismo": organismo})
 		return

@@ -14,6 +14,7 @@ const (
 	Virus       Organismo = "Virus"
 	Fungo       Organismo = "Fungo"
 	Protozoario Organismo = "Protozoario"
+	Helminto    Organismo = "Helminto"
 )
 
 func (organismo *Organismo) Scan(value interface{}) error {
