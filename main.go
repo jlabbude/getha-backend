@@ -45,6 +45,7 @@ func main() {
 	router.GET("/serve_image", aparelhos.ServeImage)
 	router.GET("/serve_manual", aparelhos.ServeManual)
 	router.GET("/serve_video", aparelhos.ServeVideo)
+	router.PUT("/update_aparelho_video", aparelhos.UpdateAparelhoVideo)
 
 	router.POST("/create_zoonose", zoonose.CreateZoonose)
 	router.DELETE("/delete_zoonose", zoonose.DeleteZoonose)

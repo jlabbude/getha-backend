@@ -156,3 +156,33 @@ func CreateFile(id uuid.UUID, file *multipart.FileHeader, destPath string, ftype
 	}
 	return filePath, nil
 }
+
+func UpdateAparelhoVideo(context *gin.Context) {
+	id, err := uuid.Parse(context.Query("id"))
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Formatação de ID inválida"})
+		return
+	}
+	localDir := path.Join(AparelhoPath, id.String())
+	video, err := context.FormFile("video_path")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do vídeo, " + err.Error()})
+		return
+	}
+	videoPath, err := CreateFile(id, video, localDir, Video)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if result := models.DATABASE.Model(&models.Aparelhos{}).
+		Where("id = ?", id).
+		Update("video_path", videoPath); result.Error != nil {
+		if errOS := os.Remove(videoPath); errOS != nil {
+			context.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao remover o vídeo antigo: " + errOS.Error()})
+			return
+		}
+		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+	context.JSON(http.StatusOK, gin.H{"message": "Vídeo atualizado com sucesso", "video_path": videoPath})
+}
