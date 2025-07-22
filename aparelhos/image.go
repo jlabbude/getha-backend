@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http"
-	"path"
 	"path/filepath"
 )
 
@@ -35,7 +34,7 @@ func ServeImage(context *gin.Context) {
 		return
 	}
 
-	if matches, err := filepath.Glob(path.Join(AparelhoPath, imagemPath)); len(matches) <= 0 {
+	if matches, err := filepath.Glob(imagemPath); len(matches) <= 0 {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"error": "arquivo de imagem não encontrado, considere deletar e recadastrar esse aparelho",
 		})
