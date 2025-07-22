@@ -56,7 +56,7 @@ func main() {
 
 	router.POST("/create_zoonose", zoonose.CreateZoonose)
 	router.DELETE("/delete_zoonose", zoonose.DeleteZoonose)
-	router.GET("/serve_zoonose_ids", zoonose.ServeZoonoseIDList)
+	router.GET("/serve_zoonoses", zoonose.ServeZoonoses)
 	router.GET("/get_card_info", zoonose.GetZoonoseCardInfo)
 	router.GET("/get_zoonose_full", zoonose.GetZoonoseFullInfo)
 

@@ -24,15 +24,36 @@ type JSONZoonose struct {
 	Diagnosticos   []string `json:"diagnosticos" binding:"required"`
 }
 
-func ServeZoonoseIDList(context *gin.Context) {
-	var ids []uuid.UUID
+type Card struct {
+	ID             uuid.UUID `json:"id" binding:"required"`
+	Nome           string    `json:"nome" binding:"required"`
+	NomeCientifico string    `json:"nome_cientifico" binding:"required"`
+	Organismo      string    `json:"organismo" binding:"required"`
+}
 
-	if err := models.DATABASE.Model(&models.Zoonose{}).Pluck("ID", &ids).Error; err != nil {
-		context.JSON(500, gin.H{"error": err.Error()})
+func ServeZoonoses(context *gin.Context) {
+	var zoonoses []models.Zoonose
+
+	if err := models.
+		DATABASE.
+		Model(&models.Zoonose{}).
+		Select("id", "nome", "nome_cientifico", "organismo").
+		Find(&zoonoses).Error; err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	context.JSON(200, ids)
+	cards := make([]Card, len(zoonoses))
+	for i, zoonose := range zoonoses {
+		cards[i] = Card{
+			ID:             zoonose.ID,
+			Nome:           zoonose.Nome,
+			NomeCientifico: zoonose.NomeCientifico,
+			Organismo:      string(zoonose.Organismo),
+		}
+	}
+
+	context.JSON(http.StatusOK, cards)
 }
 
 func CreateZoonose(context *gin.Context) {
@@ -136,7 +157,7 @@ func CreateZoonose(context *gin.Context) {
 }
 
 func DeleteZoonose(context *gin.Context) {
-	id := context.Query("id")
+	id := context.Query("ID")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
 		return
@@ -245,18 +266,9 @@ func GetZoonoseCardInfo(context *gin.Context) {
 
 }
 
-type InfoAuxZoonose struct {
-	Agentes      []string
-	Vetores      []string
-	Transmissoes []string
-	Profilaxias  []string
-	Diagnosticos []string
-	Regioes      []string
-}
-
 func GetZoonoseFullInfo(context *gin.Context) {
 	context.Header("Content-Type", "application/json; charset=utf-8")
-	id := context.Query("id")
+	id := context.Query("ID")
 	if id == "" {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "ID não fornecido."})
 		return
@@ -282,28 +294,38 @@ func GetZoonoseFullInfo(context *gin.Context) {
 		return
 	}
 
-	infoauxzoo := InfoAuxZoonose{
-		Diagnosticos: mapSlice(zoonose.Diagnosticos, func(sintomas models.Diagnosticos) string { return sintomas.Diagnosticos }),
-		Profilaxias:  mapSlice(zoonose.Profilaxias, func(profilaxias models.Profilaxias) string { return profilaxias.Profilaxias }),
-		Transmissoes: mapSlice(zoonose.Transmissoes, func(transmissoes models.Transmissoes) string { return transmissoes.Transmissoes }),
-		Vetores:      mapSlice(zoonose.Vetores, func(vetores models.Vetores) string { return vetores.Vetores }),
-		Regioes:      mapSlice(zoonose.Regioes, func(regioes models.Regioes) string { return regioes.Regioes }),
-		Agentes:      mapSlice(zoonose.Agentes, func(agentes models.Agentes) string { return agentes.Agentes }),
+	zoonoseJSON := JSONZoonose{
+		Nome:           zoonose.Nome,
+		NomeCientifico: zoonose.NomeCientifico,
+		Organismo:      string(zoonose.Organismo),
+		Descricao:      zoonose.Descricao,
+		Regioes: mapSlice(
+			zoonose.Regioes,
+			func(regioes models.Regioes) string { return regioes.Regioes },
+		),
+		Agentes: mapSlice(
+			zoonose.Agentes,
+			func(agentes models.Agentes) string { return agentes.Agentes },
+		),
+		Vetores: mapSlice(
+			zoonose.Vetores,
+			func(vetores models.Vetores) string { return vetores.Vetores },
+		),
+		Transmissoes: mapSlice(
+			zoonose.Transmissoes,
+			func(transmissoes models.Transmissoes) string { return transmissoes.Transmissoes },
+		),
+		Profilaxias: mapSlice(
+			zoonose.Profilaxias,
+			func(profilaxias models.Profilaxias) string { return profilaxias.Profilaxias },
+		),
+		Diagnosticos: mapSlice(
+			zoonose.Diagnosticos,
+			func(sintomas models.Diagnosticos) string { return sintomas.Diagnosticos },
+		),
 	}
 
-	context.JSON(http.StatusOK, gin.H{
-		"id":              zoonose.ID,
-		"nome":            zoonose.Nome,
-		"nome_cientifico": zoonose.NomeCientifico,
-		"descricao":       zoonose.Descricao,
-		"organismo":       zoonose.Organismo,
-		"regioes":         infoauxzoo.Regioes,
-		"agentes":         infoauxzoo.Agentes,
-		"vetores":         infoauxzoo.Vetores,
-		"transmissoes":    infoauxzoo.Transmissoes,
-		"profilaxia":      infoauxzoo.Profilaxias,
-		"diagnosticos":    infoauxzoo.Diagnosticos,
-	})
+	context.JSON(http.StatusOK, zoonoseJSON)
 }
 
 func mapSlice[T any](source []T, extract func(T) string) []string {

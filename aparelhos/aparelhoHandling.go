@@ -36,7 +36,7 @@ func ServeAparelhos(context *gin.Context) {
 		Model(&models.Aparelhos{}).
 		Select("ID", "nome").
 		Find(&aparelhos).Error; err != nil {
-		context.JSON(500, gin.H{"error": err.Error()})
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -48,14 +48,14 @@ func ServeAparelhos(context *gin.Context) {
 		}
 	}
 
-	context.JSON(200, aparelhosJSON)
+	context.JSON(http.StatusOK, aparelhosJSON)
 }
 
 func CreateAparelho(context *gin.Context) {
 	id := uuid.New()
 	localDir := path.Join(AparelhoPath, id.String())
 	if err := os.Mkdir(localDir, 0777); err != nil {
-		context.JSON(500, gin.H{"error": err.Error()})
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -158,7 +158,9 @@ func CreateFile(id uuid.UUID, file *multipart.FileHeader, destPath string, ftype
 	if err != nil {
 		return "", errors.New(err.Error() + "aqui1" + ftypes[0])
 	}
-	defer fileHandler.Close()
+	defer func(fileHandler multipart.File) {
+		_ = fileHandler.Close()
+	}(fileHandler)
 	filePath := path.Join(destPath, id.String()+path.Ext(file.Filename))
 	if finalFile, err := os.Create(filePath); err != nil {
 		return "", errors.New(err.Error() + "aqui2" + ftypes[0])

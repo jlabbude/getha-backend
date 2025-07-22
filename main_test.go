@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"getha/aparelhos"
+	"getha/zoonose"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"io"
@@ -17,18 +18,14 @@ import (
 )
 
 const (
-	createAparelho        = "create_aparelho"
-	deleteAparelho        = "delete_aparelho"
-	serveAparelhos        = "serve_aparelhos"
-	serveImage            = "serve_image"
-	serve_manual          = "serve_manual"
-	serve_video           = "serve_video"
-	update_aparelho_video = "update_aparelho_video"
-	create_zoonose        = "create_zoonose"
-	delete_zoonose        = "delete_zoonose"
-	serve_zoonose_ids     = "serve_zoonose_ids"
-	get_card_info         = "get_card_info"
-	get_zoonose_full      = "get_zoonose_full"
+	createAparelho = "create_aparelho"
+	deleteAparelho = "delete_aparelho"
+	serveAparelhos = "serve_aparelhos"
+	serveImage     = "serve_image"
+	createZoonose  = "create_zoonose"
+	deleteZoonose  = "delete_zoonose"
+	serveZoonoses  = "serve_zoonoses"
+	getZoonoseFull = "get_zoonose_full"
 )
 
 var client = &http.Client{}
@@ -74,6 +71,7 @@ var _ = ginkgo.BeforeSuite(func() {
 })
 
 var _ = ginkgo.AfterSuite(func() {
+	// Clear test aparelhos from db
 	req, err := http.NewRequest(http.MethodGet, URL(serveAparelhos), nil)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	response, err := client.Do(req)
@@ -88,7 +86,6 @@ var _ = ginkgo.AfterSuite(func() {
 	var aparelhos []aparelhos.AparelhoJSON
 	gomega.Expect(json.Unmarshal(body, &aparelhos)).NotTo(gomega.HaveOccurred())
 	for _, aparelho := range aparelhos {
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		req, err = http.NewRequest(
 			http.MethodDelete,
 			URL(deleteAparelho+"?ID="+aparelho.ID.String()),
@@ -98,6 +95,28 @@ var _ = ginkgo.AfterSuite(func() {
 		res, err := client.Do(req)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(res.StatusCode).To(gomega.Equal(http.StatusOK))
+	}
+
+	// Clear test zoonoses from db
+	req, err = http.NewRequest(http.MethodGet, URL(serveZoonoses), nil)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	response, err = client.Do(req)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusOK))
+	body, err = io.ReadAll(response.Body)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	var zoonoseCards []zoonose.Card
+	gomega.Expect(json.Unmarshal(body, &zoonoseCards)).NotTo(gomega.HaveOccurred())
+	for _, zoonoseCard := range zoonoseCards {
+		req, err = http.NewRequest(
+			http.MethodDelete,
+			URL(deleteZoonose+"?ID="+zoonoseCard.ID.String()),
+			nil,
+		)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		res, err := client.Do(req)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(res.StatusCode).To(gomega.Equal(http.StatusNoContent))
 	}
 })
 
@@ -122,18 +141,56 @@ var _ = ginkgo.Describe("server tests", func() {
 		resJSON := make(map[string]interface{})
 		gomega.Expect(json.Unmarshal(respBody, &resJSON)).NotTo(gomega.HaveOccurred())
 		gomega.Expect(resp.StatusCode).To(gomega.Equal(http.StatusCreated))
-		defer resp.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		}(resp.Body)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		response, err := http.Get(URL(serveImage, "?ID="+resJSON["id"].(string)))
+		response, err := http.Get(URL(serveImage + "?ID=" + resJSON["id"].(string)))
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusOK))
+	})
+	ginkgo.It("add zoonose", func() {
+		zoonoseMock := zoonose.JSONZoonose{
+			Nome:           "Rabies",
+			NomeCientifico: "Lyssavirus",
+			Descricao:      "Descrição",
+			Organismo:      "Protozoario",
+			Agentes:        []string{"Contact with infected animal"},
+			Vetores:        []string{"Dogs", "Bats"},
+			Transmissoes:   []string{"Animal bite"},
+			Profilaxias:    []string{"Vaccination"},
+			Diagnosticos:   []string{"Fever", "Hydrophobia"},
+			Regioes:        []string{"Bahia", "Paraíba"},
+		}
+		zoonoseMockJSON, err := json.Marshal(zoonoseMock)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		createReq, err := http.NewRequest("POST", URL(createZoonose), bytes.NewBuffer(zoonoseMockJSON))
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		createReq.Header.Set("Content-Type", "application/json; charset=utf-8")
+		createResp, err := client.Do(createReq)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		createRespBody, err := io.ReadAll(createResp.Body)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		createRespJSON := make(map[string]interface{})
+		gomega.Expect(json.Unmarshal(createRespBody, &createRespJSON)).NotTo(gomega.HaveOccurred())
+		gomega.Expect(createResp.StatusCode).To(gomega.Equal(http.StatusCreated))
+		zoonoseFullReq, err := http.NewRequest(http.MethodGet, URL(getZoonoseFull+"?ID="+createRespJSON["id"].(string)), nil)
+		zoonoseFullResp, err := client.Do(zoonoseFullReq)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		zoonoseFullBody, err := io.ReadAll(zoonoseFullResp.Body)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(zoonoseFullResp.StatusCode).To(gomega.Equal(http.StatusOK))
+		gomega.Expect(zoonoseMockJSON).To(gomega.Equal(zoonoseFullBody))
 	})
 })
 
 func addFile(writer *multipart.Writer, fieldName, filePath string) {
 	file, err := os.Open(filePath)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-	defer file.Close()
+	defer func(file *os.File) {
+		gomega.Expect(file.Close()).Should(gomega.Succeed())
+	}(file)
 	part, err := writer.CreateFormFile(fieldName, file.Name())
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	_, err = io.Copy(part, file)
