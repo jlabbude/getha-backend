@@ -10,14 +10,14 @@ import (
 func ServeImage(context *gin.Context) {
 	var imagemPath string
 
-	id, err := uuid.Parse(context.Query("id"))
+	id, err := uuid.Parse(context.Query("ID"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
 		return
 	}
 
 	err = models.DATABASE.Model(&models.Aparelhos{}).
-		Where("id = ?", id).
+		Where("ID = ?", id).
 		Select("ImagePath").
 		Limit(1).
 		Scan(&imagemPath).

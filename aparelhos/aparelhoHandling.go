@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 )
 
-const AparelhoPath = "/app/aparelhos"
+var AparelhoPath = "/app/aparelhos"
 
 type FileType []string
 
@@ -23,69 +23,78 @@ var (
 	Manual = FileType([]string{".pdf"})
 )
 
-func ServeAparelhoIDList(context *gin.Context) {
-	var ids []uuid.UUID
+type AparelhoJSON struct {
+	ID   uuid.UUID `json:"id"`
+	Nome string    `json:"nome"`
+}
 
-	if err := models.DATABASE.Model(&models.Aparelhos{}).Pluck("ID", &ids).Error; err != nil {
+func ServeAparelhos(context *gin.Context) {
+	var aparelhos []models.Aparelhos
+
+	if err := models.
+		DATABASE.
+		Model(&models.Aparelhos{}).
+		Select("ID", "nome").
+		Find(&aparelhos).Error; err != nil {
 		context.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	context.JSON(200, ids)
+	aparelhosJSON := make([]AparelhoJSON, len(aparelhos))
+	for i, aparelho := range aparelhos {
+		aparelhosJSON[i] = AparelhoJSON{
+			ID:   aparelho.ID,
+			Nome: aparelho.Nome,
+		}
+	}
+
+	context.JSON(200, aparelhosJSON)
 }
 
 func CreateAparelho(context *gin.Context) {
-	cleanup := false
 	id := uuid.New()
 	localDir := path.Join(AparelhoPath, id.String())
-	err := os.Mkdir(localDir, 0777)
-	if err != nil {
+	if err := os.Mkdir(localDir, 0777); err != nil {
 		context.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	defer func() {
-		if !cleanup {
-			os.RemoveAll(localDir)
-		}
-	}()
-
 	nome := context.PostForm("nome")
 	if nome == "" {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no preenchimento do nome."})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": "Falha no preenchimento do nome."}, localDir)
 		return
 	}
 
 	image, err := context.FormFile("image_path")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload da imagem, " + err.Error()})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": "Falha no upload da imagem, " + err.Error()}, localDir)
 		return
 	}
 	imagePath, err := CreateFile(id, image, localDir, Image)
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": err.Error()}, localDir)
 		return
 	}
 
 	video, err := context.FormFile("video_path")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do vídeo, " + err.Error()})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": "Falha no upload do vídeo, " + err.Error()}, localDir)
 		return
 	}
 	videoPath, err := CreateFile(id, video, localDir, Video)
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": err.Error()}, localDir)
 		return
 	}
 
 	manual, err := context.FormFile("manual_path")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": "Falha no upload do manual, " + err.Error()})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": "Falha no upload do manual, " + err.Error()}, localDir)
 		return
 	}
 	manualPath, err := CreateFile(id, manual, localDir, Manual)
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		cleanUpAfterError(&context, http.StatusBadRequest, gin.H{"error": err.Error()}, localDir)
 		return
 	}
 
@@ -98,34 +107,36 @@ func CreateAparelho(context *gin.Context) {
 	}
 
 	if result := models.DATABASE.Create(&aparelho); result.Error != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		cleanUpAfterError(&context, http.StatusInternalServerError, gin.H{"error": result.Error.Error()}, localDir)
 		return
 	}
 
-	cleanup = true
-	context.String(http.StatusCreated, "Aparelho criado com id: "+id.String())
+	context.JSON(http.StatusCreated, gin.H{
+		"message": "Aparelho criado com sucesso",
+		"id":      aparelho.ID.String(),
+	})
 }
 
 func DeleteAparelho(context *gin.Context) { // fixme auth
-	id, err := uuid.Parse(context.Query("id"))
+	id, err := uuid.Parse(context.Query("ID"))
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Formatação de ID inválida"})
 		return
 	}
 
-	if _, err = models.DATABASE.Model(&models.Aparelhos{}).Where("id = ?", id).Delete(&models.Aparelhos{}).Rows(); err != nil {
+	if _, err = models.DATABASE.Model(&models.Aparelhos{}).Where("ID = ?", id).Delete(&models.Aparelhos{}).Rows(); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	matches, err := filepath.Glob(id.String())
+	matches, err := filepath.Glob(path.Join(AparelhoPath, id.String()))
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	for _, match := range matches {
-		if err = os.Remove(match); err != nil {
+		if err = os.RemoveAll(match); err != nil {
 			context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -158,7 +169,7 @@ func CreateFile(id uuid.UUID, file *multipart.FileHeader, destPath string, ftype
 }
 
 func UpdateAparelhoVideo(context *gin.Context) {
-	id, err := uuid.Parse(context.Query("id"))
+	id, err := uuid.Parse(context.Query("ID"))
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": "Formatação de ID inválida"})
 		return
@@ -175,7 +186,7 @@ func UpdateAparelhoVideo(context *gin.Context) {
 		return
 	}
 	if result := models.DATABASE.Model(&models.Aparelhos{}).
-		Where("id = ?", id).
+		Where("ID = ?", id).
 		Update("video_path", videoPath); result.Error != nil {
 		if errOS := os.Remove(videoPath); errOS != nil {
 			context.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao remover o vídeo antigo: " + errOS.Error()})
@@ -185,4 +196,17 @@ func UpdateAparelhoVideo(context *gin.Context) {
 		return
 	}
 	context.JSON(http.StatusOK, gin.H{"message": "Vídeo atualizado com sucesso", "video_path": videoPath})
+}
+
+func cleanUpAfterError(
+	context **gin.Context,
+	httpErrorCode int,
+	message gin.H,
+	localDir string,
+) {
+	if err := os.RemoveAll(localDir); err != nil {
+		(*context).JSON(http.StatusInternalServerError, gin.H{"fatal-error": err, "original-error": message})
+		return
+	}
+	(*context).JSON(httpErrorCode, message)
 }

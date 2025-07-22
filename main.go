@@ -22,7 +22,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	db.Exec("CREATE TYPE organismo AS ENUM ('Virus', 'Bacteria', 'Fungo', 'Protozoario', 'Helminto')")
+	db.Exec(`IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'organismo') THEN
+					CREATE TYPE organismo AS ENUM ('Virus', 'Bacteria', 'Fungo', 'Protozoario', 'Helminto');
+				END IF;`,
+	)
 	if err = db.AutoMigrate(
 		&models.Aparelhos{},
 		&models.Zoonose{},
@@ -41,7 +44,7 @@ func main() {
 
 	router.POST("/create_aparelho", aparelhos.CreateAparelho)
 	router.DELETE("/delete_aparelho", aparelhos.DeleteAparelho)
-	router.GET("/serve_aparelhos_ids", aparelhos.ServeAparelhoIDList)
+	router.GET("/serve_aparelhos", aparelhos.ServeAparelhos)
 	router.GET("/serve_image", aparelhos.ServeImage)
 	router.GET("/serve_manual", aparelhos.ServeManual)
 	router.GET("/serve_video", aparelhos.ServeVideo)
@@ -53,8 +56,9 @@ func main() {
 	router.GET("/get_card_info", zoonose.GetZoonoseCardInfo)
 	router.GET("/get_zoonose_full", zoonose.GetZoonoseFullInfo)
 
-	err = router.Run(":80")
-	if err != nil {
-		panic(err)
+	if err = router.Run(":80"); err != nil {
+		if fatalErr := router.Run(":8080"); fatalErr != nil {
+			panic(fatalErr)
+		}
 	}
 }

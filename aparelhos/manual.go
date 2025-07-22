@@ -10,14 +10,14 @@ import (
 func ServeManual(context *gin.Context) {
 	var manualPath string
 
-	id, err := uuid.Parse(context.Query("id"))
+	id, err := uuid.Parse(context.Query("ID"))
 	if err != nil {
 		context.String(http.StatusBadRequest, "Formatação de ID inválida")
 		return
 	}
 
 	err = models.DATABASE.Model(&models.Aparelhos{}).
-		Where("id = ?", id).
+		Where("ID = ?", id).
 		Select("ManualPath").
 		Limit(1).
 		Scan(&manualPath).
