@@ -22,9 +22,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	db.Exec(`IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'organismo') THEN
+	db.Exec(
+		`DO $$ 
+			BEGIN 
+				IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'organismo') THEN
 					CREATE TYPE organismo AS ENUM ('Virus', 'Bacteria', 'Fungo', 'Protozoario', 'Helminto');
-				END IF;`,
+			END IF;
+		  END $$`,
 	)
 	if err = db.AutoMigrate(
 		&models.Aparelhos{},
